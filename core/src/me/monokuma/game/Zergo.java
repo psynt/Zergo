@@ -17,7 +17,7 @@ import com.badlogic.gdx.utils.TimeUtils;
 
 import java.util.Iterator;
 
-public class Zergo extends ApplicationAdapter {
+public class Zergo extends ApplicationAdapter implements Observer{
 
 	private Vector3 touchPos = new Vector3();
 
@@ -31,21 +31,11 @@ public class Zergo extends ApplicationAdapter {
 	private OrthographicCamera camera;
 	private SpriteBatch batch;
 
-	private Rectangle bucket;
-	private Array<Rectangle> raindrops;
+	private Galeata bucket;
+	private Raindroppes raindrops;
+//	private Array<Rectangle> raindrops;
 	private long lastDropTime;
 
-
-
-	private void spawnRaindrop() {
-		Rectangle raindrop = new Rectangle();
-		raindrop.x = MathUtils.random(0, 800-64);
-		raindrop.y = 480;
-		raindrop.width = 64;
-		raindrop.height = 64;
-		raindrops.add(raindrop);
-		lastDropTime = TimeUtils.nanoTime();
-	}
 
 	@Override
 	public void create () {
@@ -67,23 +57,18 @@ public class Zergo extends ApplicationAdapter {
 
 		batch = new SpriteBatch();
 
-		bucket = new Rectangle();
-		bucket.x = 800 / 2 - 64 / 2;
-		bucket.y = 20;
-		bucket.width = 64;
-		bucket.height = 64;
+		bucket = new Galeata();
 
-		raindrops = new Array<Rectangle>();
-		spawnRaindrop();
+		raindrops = new Raindroppes();
+		raindrops.spawnRaindrop();
+		lastDropTime = TimeUtils.nanoTime();
+
+		raindrops.setObs(this);
+		raindrops.setPg(bucket);
 
 	}
 
-	@Override
-	public void render () {
-		Gdx.gl.glClearColor(0, 0, 0.2f, 1);
-		Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
-
-
+	private void checkInput(){
 		if(Gdx.input.isTouched()) {
 			touchPos.set(Gdx.input.getX(), Gdx.input.getY(), 0);
 			camera.unproject(touchPos);
@@ -93,22 +78,25 @@ public class Zergo extends ApplicationAdapter {
 		if(Gdx.input.isKeyPressed(Input.Keys.LEFT)) bucket.x -= 200 * Gdx.graphics.getDeltaTime();
 		if(Gdx.input.isKeyPressed(Input.Keys.RIGHT)) bucket.x += 200 * Gdx.graphics.getDeltaTime();
 
+	}
+
+	@Override
+	public void render () {
+		Gdx.gl.glClearColor(0, 0, 0.2f, 1);
+		Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
+
+		checkInput();
 
 		if(bucket.x < 0) bucket.x = 0;
 		if(bucket.x > 800 - 64) bucket.x = 800 - 64;
 
-		if(TimeUtils.nanoTime() - lastDropTime > 1000000000) spawnRaindrop();
-
-		Iterator<Rectangle> iter = raindrops.iterator();
-		while(iter.hasNext()) {
-			Rectangle raindrop = iter.next();
-			raindrop.y -= 200 * Gdx.graphics.getDeltaTime();
-			if(raindrop.y + 64 < 0) iter.remove();
-			if(raindrop.overlaps(bucket)) {
-				dropSound.play();
-				iter.remove();
-			}
+		if(TimeUtils.nanoTime() - lastDropTime > 1000000000){
+			raindrops.spawnRaindrop();
+			lastDropTime = TimeUtils.nanoTime();
 		}
+
+		raindrops.update();
+
 
 		camera.update();
 
@@ -129,5 +117,10 @@ public class Zergo extends ApplicationAdapter {
 		dropSound.dispose();
 		bucketImage.dispose();
 		rainMusic.dispose();
+	}
+
+	@Override
+	public void update() {
+		dropSound.play();
 	}
 }
